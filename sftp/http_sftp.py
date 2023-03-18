@@ -112,10 +112,10 @@ class MyFTPClient(asyncssh.sftp.SFTPClient):
 
 asyncssh.sftp.SFTPClient = MyFTPClient
 
-async def run_client(async_gen, parser, data) -> None:
+async def run_client(async_gen, parser, data, remote_path) -> None:
     async with asyncssh.connect(os.environ.get('SFTP_SERVER'), 1443, password='tiger', username='testuser', known_hosts=None) as conn:
         async with conn.start_sftp_client() as sftp:
-            await sftp.aput(async_gen, parser, data, 'Python26.tar')
+            await sftp.aput(async_gen, parser, data, remote_path)
 
 # try:
 #     asyncio.get_event_loop().run_until_complete(run_client())
@@ -123,11 +123,11 @@ async def run_client(async_gen, parser, data) -> None:
 #     sys.exit('SFTP operation failed: ' + str(exc))
 
 @app.post("/files/")
-async def create_file(request: Request):
+async def create_file(request: Request, remote_path: str):
     parser = StreamingFormDataParser(headers=request.headers)
     data = ValueTarget()
     parser.register('file', data)
-    await run_client(request.stream(), parser, data)
+    await run_client(request.stream(), parser, data, remote_path)
     return dict(code='success')
 
 @app.post("/test_files/")
