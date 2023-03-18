@@ -4,11 +4,24 @@ from typing import AsyncIterator, Optional
 import asyncssh
 from asyncssh.sftp import *
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from starlette.requests import Request
 from streaming_form_data import StreamingFormDataParser
 from streaming_form_data.targets import ValueTarget
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    print(
+        "Time took to process the request and return response is {} sec".format(
+            time.time() - start_time
+        )
+    )
+    return response
 
 
 class StreamingBody:
@@ -72,7 +85,7 @@ class MySFTPFileCopier(asyncssh.sftp._SFTPFileCopier):
             while True:
                 _chunk = await self._src.read(_size)
                 print("chunk size", len(_chunk))
-                parser.data_received(_chunk)
+                await run_in_threadpool(parser.data_received, _chunk)
                 if not data.value and len(_chunk) == _size:
                     continue
                 if data.value:
