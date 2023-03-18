@@ -22,7 +22,7 @@ def create_sftp_client():
     transport = paramiko.Transport((sftp_host, sftp_port))
     transport.connect(username=sftp_username, password=sftp_password)
     sftp = paramiko.SFTPClient.from_transport(transport)
-    return sftp
+    return transport, sftp
 
 
 class MyTarget(BaseTarget):
@@ -39,17 +39,22 @@ class MyTarget(BaseTarget):
 
 @app.post("/upload_file")
 async def upload_file(request: Request, remote_path: str):
-    sftp = await run_in_threadpool(create_sftp_client)
+    tansport, sftp = await run_in_threadpool(create_sftp_client)
+    with tansport, sftp:
+        # Create a remote file object on the SFTP server
+        with sftp.open(remote_path, "wb") as remote_file:
+            remote_file.set_pipelined()
 
-    # Create a remote file object on the SFTP server
-    with sftp.open(remote_path, "wb") as remote_file:
+            # Set up the streaming form data parser
+            parser = StreamingFormDataParser(headers=request.headers)
+            parser.register('file', MyTarget(remote_file))
 
-        # Set up the streaming form data parser
-        parser = StreamingFormDataParser(headers=request.headers)
-        parser.register('file', MyTarget(remote_file))
+            # Iterate through the async generator and parse the multipart form data
+            async for chunk in request.stream():
+                await run_in_threadpool(parser.data_received, chunk)
 
-        # Iterate through the async generator and parse the multipart form data
-        async for chunk in request.stream():
-            await run_in_threadpool(parser.data_received, chunk)
+        return {"status": "success", "remote_path": remote_path}
 
-    return {"status": "success", "remote_path": remote_path}
+@app.get("/test_cocurency")
+async def test_cocurency():
+    return {"status": "success"}
