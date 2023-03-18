@@ -73,31 +73,33 @@ class StreamingBody:
             return b""
 
 
+async def xx(async_gen, parser, data):
+    async for _chunk in async_gen: 
+        await run_in_threadpool(parser.data_received, _chunk)
+        if not data.value:
+            continue
+        yield data.value
+        data._values.clear()
+
 class MySFTPFileCopier(asyncssh.sftp._SFTPFileCopier):
-    async def run(self, async_gen, parser, data) -> None:
+    async def run(self, file_stream) -> None:
         """Perform parallel file copy"""
 
         try:
-            self._src = StreamingBody(async_gen)
+            self._src = file_stream 
             self._dst = await self._dstfs.open(self._dstpath, "wb")
 
             _size = 4 * 1024 * 1024
             while True:
                 _chunk = await self._src.read(_size)
                 print("chunk size", len(_chunk))
-                await run_in_threadpool(parser.data_received, _chunk)
-                if not data.value and len(_chunk) == _size:
-                    continue
-                if data.value:
-                    await self._dst.write(data.value)
-                    data._values.clear()  # ?
+                if _chunk:
+                    await self._dst.write(_chunk)
                 if len(_chunk) < _size:
                     break
         finally:
             if self._dst:  # pragma: no branch
                 await self._dst.close()
-
-    pass
 
 
 _SFTPPath = Union[bytes, FilePath]
@@ -106,9 +108,7 @@ _SFTPPath = Union[bytes, FilePath]
 class MyFTPClient(asyncssh.sftp.SFTPClient):
     async def aput(
         self,
-        async_gen,
-        parser,
-        data,
+        file_stream,
         remotepath: Optional[_SFTPPath] = None,
         *,
         preserve: bool = False,
@@ -129,7 +129,7 @@ class MyFTPClient(asyncssh.sftp.SFTPClient):
             None,
             remotepath,
             progress_handler,
-        ).run(async_gen, parser, data)
+        ).run(file_stream)
 
 
 asyncssh.sftp.SFTPClient = MyFTPClient
@@ -144,7 +144,8 @@ async def run_client(async_gen, parser, data, remote_path) -> None:
         known_hosts=None,
     ) as conn:
         async with conn.start_sftp_client() as sftp:
-            await sftp.aput(async_gen, parser, data, remote_path)
+            file_stream = StreamingBody(xx(async_gen, parser, data))
+            await sftp.aput(file_stream, remote_path)
 
 
 # try:
