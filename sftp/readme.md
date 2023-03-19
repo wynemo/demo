@@ -12,3 +12,7 @@
 ## test file upload
 
     curl -F 'file=@/path/to/your/file.zip' http://127.0.0.1:8000/upload_file?remote_path=Cursor.zip
+
+## test file download
+
+    curl http://127.0.0.1:8000/files/Cursor.zip -O
