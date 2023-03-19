@@ -191,7 +191,7 @@ class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
                 await self._src.close()
 
 class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
-    async def aget(
+    def aget(
         self,
         remotepath: Optional[_SFTPPath] = None,
         *,
@@ -223,8 +223,7 @@ async def download_file(remote_path: str) -> AsyncIterator[bytes]:
         known_hosts=None,
     ) as conn:
         async with conn.start_sftp_client() as sftp:
-            # yield from sftp.aget(remote_path)
-            async for chunk in await sftp.aget(remote_path):
+            async for chunk in sftp.aget(remote_path):
                 yield chunk
 
 @app.get("/files/{remote_path}")
