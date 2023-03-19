@@ -5,9 +5,11 @@ import asyncssh
 from asyncssh.sftp import *
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from starlette.requests import Request
 from streaming_form_data import StreamingFormDataParser
 from streaming_form_data.targets import ValueTarget
+import uvicorn
 
 app = FastAPI()
 
@@ -169,3 +171,67 @@ async def test_files(request: Request):
         async for each in request.stream():
             f.write(each)
     return dict(code="success")
+
+class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
+    async def run(self) -> AsyncIterator[bytes]:
+        """Perform parallel file copy as a stream"""
+
+        try:
+            self._src = await self._srcfs.open(self._srcpath, "rb")
+            _size = 4 * 1024 * 1024
+
+            while True:
+                _chunk = await self._src.read(_size)
+                if _chunk:
+                    yield _chunk
+                if len(_chunk) < _size:
+                    break
+        finally:
+            if self._src:  # pragma: no branch
+                await self._src.close()
+
+class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
+    async def aget(
+        self,
+        remotepath: Optional[_SFTPPath] = None,
+        *,
+        block_size: int = SFTP_BLOCK_SIZE,
+        max_requests: int = 128,
+        progress_handler: SFTPProgressHandler = None,
+        error_handler: SFTPErrorHandler = None,
+    ) -> AsyncIterator[bytes]:
+        return MySFTPFileDownloader(
+            block_size,
+            max_requests,
+            0,
+            0,
+            self,
+            None,
+            remotepath,
+            None,
+            progress_handler,
+        ).run()
+
+asyncssh.sftp.SFTPClient = MySFTPClientWithDownload
+
+async def download_file(remote_path: str) -> AsyncIterator[bytes]:
+    async with asyncssh.connect(
+        os.environ.get("SFTP_SERVER"),
+        1443,
+        password="tiger",
+        username="testuser",
+        known_hosts=None,
+    ) as conn:
+        async with conn.start_sftp_client() as sftp:
+            # yield from sftp.aget(remote_path)
+            async for chunk in await sftp.aget(remote_path):
+                yield chunk
+
+@app.get("/files/{remote_path}")
+async def get_file(remote_path: str):
+    response = StreamingResponse(download_file(remote_path), media_type="application/octet-stream")
+    response.headers["Content-Disposition"] = f"attachment; filename={remote_path}"
+    return response
+
+if __name__ == '__main__':
+    uvicorn.run(app)
