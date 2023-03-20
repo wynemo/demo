@@ -228,16 +228,20 @@ async def download_file(remote_path: str) -> AsyncIterator[bytes]:
         known_hosts=None,
     ) as conn:
         async with conn.start_sftp_client() as sftp:
+            yield await sftp.getsize(remote_path)
             async for chunk in sftp.aget(remote_path):
                 yield chunk
 
 
 @app.get("/files/{remote_path}")
 async def get_file(remote_path: str):
+    _aiter = download_file(remote_path)
+    size = await _aiter.__anext__()
     response = StreamingResponse(
-        download_file(remote_path), media_type="application/octet-stream"
+        _aiter, media_type="application/octet-stream"
     )
     response.headers["Content-Disposition"] = f"attachment; filename={remote_path}"
+    response.headers["Content-Length"] = str(size)
     return response
 
 
