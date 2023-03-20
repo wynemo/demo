@@ -255,6 +255,7 @@ async def list_remote_sftp_folder(remote_path: str):
     return {"folder_contents": contents}
 
 # api to delete files
+@app.post('/delete_file')
 async def delete_file(remote_path: str):
     async with asyncssh.connect(
         os.environ.get("SFTP_SERVER"),
