@@ -232,5 +232,21 @@ async def get_file(remote_path: str):
     response.headers["Content-Disposition"] = f"attachment; filename={remote_path}"
     return response
 
+@app.get("/list_folder/")
+async def list_remote_sftp_folder(remote_path: str):
+    async def get_folder_contents(remote_path: str) -> list:
+        async with asyncssh.connect(
+            os.environ.get("SFTP_SERVER"),
+            1443,
+            password="tiger",
+            username="testuser",
+            known_hosts=None,
+        ) as conn:
+            async with conn.start_sftp_client() as sftp:
+                folder_contents = await sftp.listdir(remote_path)
+                return folder_contents
+
+    contents = await get_folder_contents(remote_path)
+    return {"folder_contents": contents}
 if __name__ == '__main__':
     uvicorn.run(app)
