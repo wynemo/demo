@@ -254,6 +254,19 @@ async def list_remote_sftp_folder(remote_path: str):
     contents = await get_folder_contents(remote_path)
     return {"folder_contents": contents}
 
+# api to delete files
+async def delete_file(remote_path: str):
+    async with asyncssh.connect(
+        os.environ.get("SFTP_SERVER"),
+        1443,
+        password="tiger",
+        username="testuser",
+        known_hosts=None,
+    ) as conn:
+        sftp: MySFTPClient
+        async with conn.start_sftp_client() as sftp:
+            await sftp.remove(remote_path)
+    return dict(code="success")
 
 if __name__ == "__main__":
     uvicorn.run(app)
