@@ -105,10 +105,29 @@ class MySFTPFileCopier(asyncssh.sftp._SFTPFileCopier):
                 await self._dst.close()
 
 
+class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
+    async def run(self) -> AsyncIterator[bytes]:
+        """Perform parallel file copy as a stream"""
+
+        try:
+            self._src = await self._srcfs.open(self._srcpath, "rb")
+            _size = 4 * 1024 * 1024
+
+            while True:
+                _chunk = await self._src.read(_size)
+                if _chunk:
+                    yield _chunk
+                if len(_chunk) < _size:
+                    break
+        finally:
+            if self._src:  # pragma: no branch
+                await self._src.close()
+
+
 _SFTPPath = Union[bytes, FilePath]
 
 
-class MyFTPClient(asyncssh.sftp.SFTPClient):
+class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
     async def aput(
         self,
         file_stream,
@@ -134,66 +153,6 @@ class MyFTPClient(asyncssh.sftp.SFTPClient):
             progress_handler,
         ).run(file_stream)
 
-
-asyncssh.sftp.SFTPClient = MyFTPClient
-
-
-async def run_client(async_gen, parser, data, remote_path) -> None:
-    async with asyncssh.connect(
-        os.environ.get("SFTP_SERVER"),
-        1443,
-        password="tiger",
-        username="testuser",
-        known_hosts=None,
-    ) as conn:
-        async with conn.start_sftp_client() as sftp:
-            file_stream = StreamingBody(parse_file_gen(async_gen, parser, data))
-            await sftp.aput(file_stream, remote_path)
-
-
-# try:
-#     asyncio.get_event_loop().run_until_complete(run_client())
-# except (OSError, asyncssh.Error) as exc:
-#     sys.exit('SFTP operation failed: ' + str(exc))
-
-
-@app.post("/files/")
-async def create_file(request: Request, remote_path: str):
-    parser = StreamingFormDataParser(headers=request.headers)
-    data = ValueTarget()
-    parser.register("file", data)
-    await run_client(request.stream(), parser, data, remote_path)
-    return dict(code="success")
-
-
-@app.post("/test_files/")
-async def test_files(request: Request):
-    with open("./test.dat", "w+b") as f:
-        async for each in request.stream():
-            f.write(each)
-    return dict(code="success")
-
-
-class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
-    async def run(self) -> AsyncIterator[bytes]:
-        """Perform parallel file copy as a stream"""
-
-        try:
-            self._src = await self._srcfs.open(self._srcpath, "rb")
-            _size = 4 * 1024 * 1024
-
-            while True:
-                _chunk = await self._src.read(_size)
-                if _chunk:
-                    yield _chunk
-                if len(_chunk) < _size:
-                    break
-        finally:
-            if self._src:  # pragma: no branch
-                await self._src.close()
-
-
-class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
     def aget(
         self,
         remotepath: Optional[_SFTPPath] = None,
@@ -219,6 +178,36 @@ class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
 asyncssh.sftp.SFTPClient = MySFTPClientWithDownload
 
 
+async def run_client(async_gen, parser, data, remote_path) -> None:
+    async with asyncssh.connect(
+        os.environ.get("SFTP_SERVER"),
+        1443,
+        password="tiger",
+        username="testuser",
+        known_hosts=None,
+    ) as conn:
+        async with conn.start_sftp_client() as sftp:
+            file_stream = StreamingBody(parse_file_gen(async_gen, parser, data))
+            await sftp.aput(file_stream, remote_path)
+
+
+@app.post("/files/")
+async def create_file(request: Request, remote_path: str):
+    parser = StreamingFormDataParser(headers=request.headers)
+    data = ValueTarget()
+    parser.register("file", data)
+    await run_client(request.stream(), parser, data, remote_path)
+    return dict(code="success")
+
+
+@app.post("/test_files/")
+async def test_files(request: Request):
+    with open("./test.dat", "w+b") as f:
+        async for each in request.stream():
+            f.write(each)
+    return dict(code="success")
+
+
 async def download_file(remote_path: str) -> AsyncIterator[bytes]:
     async with asyncssh.connect(
         os.environ.get("SFTP_SERVER"),
@@ -237,9 +226,7 @@ async def download_file(remote_path: str) -> AsyncIterator[bytes]:
 async def get_file(remote_path: str):
     _aiter = download_file(remote_path)
     size = await _aiter.__anext__()
-    response = StreamingResponse(
-        _aiter, media_type="application/octet-stream"
-    )
+    response = StreamingResponse(_aiter, media_type="application/octet-stream")
     response.headers["Content-Disposition"] = f"attachment; filename={remote_path}"
     response.headers["Content-Length"] = str(size)
     return response
