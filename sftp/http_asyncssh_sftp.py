@@ -1,5 +1,5 @@
 import os
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Optional, IO
 
 import asyncssh
 import uvicorn
@@ -127,10 +127,10 @@ class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
 _SFTPPath = Union[bytes, FilePath]
 
 
-class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
+class MySFTPClient(asyncssh.sftp.SFTPClient):
     async def aput(
         self,
-        file_stream,
+        file_stream: IO,
         remotepath: Optional[_SFTPPath] = None,
         *,
         preserve: bool = False,
@@ -175,7 +175,7 @@ class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
         ).run()
 
 
-asyncssh.sftp.SFTPClient = MySFTPClientWithDownload
+asyncssh.sftp.SFTPClient = MySFTPClient
 
 
 async def run_client(async_gen, parser, data, remote_path) -> None:
@@ -186,6 +186,7 @@ async def run_client(async_gen, parser, data, remote_path) -> None:
         username="testuser",
         known_hosts=None,
     ) as conn:
+        sftp: MySFTPClient
         async with conn.start_sftp_client() as sftp:
             file_stream = StreamingBody(parse_file_gen(async_gen, parser, data))
             await sftp.aput(file_stream, remote_path)
@@ -216,6 +217,7 @@ async def download_file(remote_path: str) -> AsyncIterator[bytes]:
         username="testuser",
         known_hosts=None,
     ) as conn:
+        sftp: MySFTPClient
         async with conn.start_sftp_client() as sftp:
             yield await sftp.getsize(remote_path)
             async for chunk in sftp.aget(remote_path):
