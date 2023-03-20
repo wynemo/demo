@@ -76,19 +76,20 @@ class StreamingBody:
 
 
 async def xx(async_gen, parser, data):
-    async for _chunk in async_gen: 
+    async for _chunk in async_gen:
         await run_in_threadpool(parser.data_received, _chunk)
         if not data.value:
             continue
         yield data.value
         data._values.clear()
 
+
 class MySFTPFileCopier(asyncssh.sftp._SFTPFileCopier):
     async def run(self, file_stream) -> None:
         """Perform parallel file copy"""
 
         try:
-            self._src = file_stream 
+            self._src = file_stream
             self._dst = await self._dstfs.open(self._dstpath, "wb")
 
             _size = 4 * 1024 * 1024
@@ -172,6 +173,7 @@ async def test_files(request: Request):
             f.write(each)
     return dict(code="success")
 
+
 class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
     async def run(self) -> AsyncIterator[bytes]:
         """Perform parallel file copy as a stream"""
@@ -189,6 +191,7 @@ class MySFTPFileDownloader(asyncssh.sftp._SFTPFileCopier):
         finally:
             if self._src:  # pragma: no branch
                 await self._src.close()
+
 
 class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
     def aget(
@@ -212,7 +215,9 @@ class MySFTPClientWithDownload(asyncssh.sftp.SFTPClient):
             progress_handler,
         ).run()
 
+
 asyncssh.sftp.SFTPClient = MySFTPClientWithDownload
+
 
 async def download_file(remote_path: str) -> AsyncIterator[bytes]:
     async with asyncssh.connect(
@@ -226,11 +231,15 @@ async def download_file(remote_path: str) -> AsyncIterator[bytes]:
             async for chunk in sftp.aget(remote_path):
                 yield chunk
 
+
 @app.get("/files/{remote_path}")
 async def get_file(remote_path: str):
-    response = StreamingResponse(download_file(remote_path), media_type="application/octet-stream")
+    response = StreamingResponse(
+        download_file(remote_path), media_type="application/octet-stream"
+    )
     response.headers["Content-Disposition"] = f"attachment; filename={remote_path}"
     return response
+
 
 @app.get("/list_folder/")
 async def list_remote_sftp_folder(remote_path: str):
@@ -243,10 +252,16 @@ async def list_remote_sftp_folder(remote_path: str):
             known_hosts=None,
         ) as conn:
             async with conn.start_sftp_client() as sftp:
-                folder_contents = await sftp.listdir(remote_path)
+                folder_contents = [
+                    {"filename": each.filename, "attrs": str(each.attrs)}
+                    async for each in sftp.scandir(remote_path)
+                ]
+                print(folder_contents)
                 return folder_contents
 
     contents = await get_folder_contents(remote_path)
     return {"folder_contents": contents}
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     uvicorn.run(app)
