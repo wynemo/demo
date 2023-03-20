@@ -2,6 +2,7 @@ import os
 from typing import AsyncIterator, Optional
 
 import asyncssh
+import uvicorn
 from asyncssh.sftp import *
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
@@ -9,7 +10,6 @@ from fastapi.responses import StreamingResponse
 from starlette.requests import Request
 from streaming_form_data import StreamingFormDataParser
 from streaming_form_data.targets import ValueTarget
-import uvicorn
 
 app = FastAPI()
 
