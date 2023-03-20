@@ -256,7 +256,6 @@ async def list_remote_sftp_folder(remote_path: str):
                     {"filename": each.filename, "attrs": str(each.attrs)}
                     async for each in sftp.scandir(remote_path)
                 ]
-                print(folder_contents)
                 return folder_contents
 
     contents = await get_folder_contents(remote_path)
