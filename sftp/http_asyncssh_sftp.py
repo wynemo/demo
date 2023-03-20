@@ -75,7 +75,7 @@ class StreamingBody:
             return b""
 
 
-async def xx(async_gen, parser, data):
+async def parse_file_gen(async_gen, parser, data):
     async for _chunk in async_gen:
         await run_in_threadpool(parser.data_received, _chunk)
         if not data.value:
@@ -147,7 +147,7 @@ async def run_client(async_gen, parser, data, remote_path) -> None:
         known_hosts=None,
     ) as conn:
         async with conn.start_sftp_client() as sftp:
-            file_stream = StreamingBody(xx(async_gen, parser, data))
+            file_stream = StreamingBody(parse_file_gen(async_gen, parser, data))
             await sftp.aput(file_stream, remote_path)
 
 
