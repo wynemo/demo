@@ -203,6 +203,9 @@ async def create_file(request: Request, remote_path: str):
 
 @app.post("/raw_files/")
 async def test_files(request: Request):
+    """
+    curl -X POST --data-binary "@/tmp/go1.20.2.linux-arm64.tar.gz" http://127.0.0.1:8000/raw_files/
+    """
     with open("./test.dat", "w+b") as f:
         async for each in request.stream():
             f.write(each)
