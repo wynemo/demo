@@ -212,6 +212,35 @@ async def test_files(request: Request):
     return dict(code="success")
 
 
+@app.post("/part_upload_files/")
+async def part_upload_files(request: Request, remote_path: str):
+    headers = request.headers
+    file_size = int(headers.get("X-File-Size"))
+    start_pos = int(headers.get("X-Start-Byte"))
+    parser = StreamingFormDataParser(headers=headers)
+    data = ValueTarget()
+    parser.register("file", data)
+    async with asyncssh.connect(
+        os.environ.get("SFTP_SERVER"),
+        1443,
+        password="tiger",
+        username="testuser",
+        known_hosts=None,
+    ) as conn:
+        async with conn.start_sftp_client() as sftp:
+            file_stream = StreamingBody(request.stream())
+            remote_file = await sftp.open(remote_path)
+            await remote_file.seek(start_pos)
+            while True:
+                _size = 4 * 1024 * 1024
+                _chunk = await file_stream.read(_size)
+                if _chunk:
+                    await remote_file.write(_chunk)
+                if len(_chunk) < _size:
+                    break
+    return dict(code="success")
+
+
 async def download_file(remote_path: str) -> AsyncIterator[bytes]:
     async with asyncssh.connect(
         os.environ.get("SFTP_SERVER"),
