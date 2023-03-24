@@ -32,10 +32,31 @@ async def copy_file(source, dest):
                         end_time = time.monotonic()
                         elapsed_time = end_time - start_time
                         print(
-                            f"File Name:go1.20.2.linux-amd64.tar.gz\n"
-                            f"Size: {file_size} bytes. Time elapsed: {elapsed_time} seconds\n"
+                            f"File Name:go1.20.2.linux-amd64.tar.gz
+"
+                            f"Size: {file_size} bytes. Time elapsed: {elapsed_time} seconds
+"
                             f". Chunk size: {_size} bytes."
                         )
+async with source_sftp.open(source, "rb") as source_file:
+    source_stat = await source_sftp.stat(source)
+    file_size = source_stat.size
+    start_time = time.monotonic()
+    _size = 4 * 1024 * 1024
+    for i in range(0, file_size, _size):
+        async with dest_sftp.open(dest, "ab") as dest_file:
+            source_file.seek(i)
+            chunk = await source_file.read(_size)
+            await dest_file.write(chunk)
+    end_time = time.monotonic()
+    elapsed_time = end_time - start_time
+    print(
+        f"File Name:go1.20.2.linux-amd64.tar.gz
+"
+        f"Size: {file_size} bytes. Time elapsed: {elapsed_time} seconds
+"
+        f". Chunk size: {_size} bytes."
+    )
 
 
 async def main():

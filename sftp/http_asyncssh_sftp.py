@@ -180,10 +180,10 @@ asyncssh.sftp.SFTPClient = MySFTPClient
 
 async def run_client(async_gen, parser, data, remote_path) -> None:
     async with asyncssh.connect(
-        os.environ.get("SFTP_SERVER"),
-        1443,
-        password="tiger",
-        username="testuser",
+        os.environ.get("SFTP_SERVER") or '127.0.0.1',
+        22,
+        # password='root',
+        username="ubuntu",
         known_hosts=None,
     ) as conn:
         sftp: MySFTPClient
@@ -202,13 +202,32 @@ async def create_file(request: Request, remote_path: str):
 
 
 @app.post("/raw_files/")
-async def test_files(request: Request):
+async def test_files(request: Request, remote_path: str):
     """
     curl -X POST --data-binary "@/tmp/go1.20.2.linux-arm64.tar.gz" http://127.0.0.1:8000/raw_files/
     """
-    with open("./test.dat", "w+b") as f:
-        async for each in request.stream():
-            f.write(each)
+    # with open("./test.dat", "w+b") as f:
+    #     async for each in request.stream():
+    #         f.write(each)
+    # return dict(code="success")
+    async with asyncssh.connect(
+        os.environ.get("SFTP_SERVER") or '127.0.0.1',
+        1443,
+        password="tiger",
+        username="testuser",
+        known_hosts=None,
+    ) as conn:
+        async with conn.start_sftp_client() as sftp:
+            file_stream = StreamingBody(request.stream())
+            remote_file = await sftp.open(remote_path, FXF_CREAT | FXF_WRITE | FXF_READ, encoding=None)
+            await remote_file.seek(0)
+            while True:
+                _size = 4 * 1024 * 1024
+                _chunk = await file_stream.read(_size)
+                if _chunk:
+                    await remote_file.write(_chunk)
+                if len(_chunk) < _size:
+                    break
     return dict(code="success")
 
 
@@ -217,19 +236,16 @@ async def part_upload_files(request: Request, remote_path: str):
     headers = request.headers
     file_size = int(headers.get("X-File-Size"))
     start_pos = int(headers.get("X-Start-Byte"))
-    parser = StreamingFormDataParser(headers=headers)
-    data = ValueTarget()
-    parser.register("file", data)
     async with asyncssh.connect(
-        os.environ.get("SFTP_SERVER"),
-        1443,
-        password="tiger",
-        username="testuser",
+        os.environ.get("SFTP_SERVER") or '127.0.0.1',
+        22,
+        #password="tiger",
+        username="ubuntu",
         known_hosts=None,
     ) as conn:
         async with conn.start_sftp_client() as sftp:
             file_stream = StreamingBody(request.stream())
-            remote_file = await sftp.open(remote_path)
+            remote_file = await sftp.open(remote_path, FXF_CREAT | FXF_WRITE | FXF_READ, encoding=None)
             await remote_file.seek(start_pos)
             while True:
                 _size = 4 * 1024 * 1024
@@ -239,27 +255,6 @@ async def part_upload_files(request: Request, remote_path: str):
                 if len(_chunk) < _size:
                     break
     return dict(code="success")
-async def upload_file(url: str, local_path: str, remote_path: str):
-    file_size = os.path.getsize(local_path)
-    chunk_size = 4 * 1024 * 1024
-    headers = {
-        "Content-Length": str(chunk_size),
-        "X-File-Size": str(file_size),
-        "X-Start-Byte": "0",
-    }
-    async with httpx.AsyncClient() as client:
-        with open(local_path, "rb") as f:
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    data=chunk,
-                    params={"remote_path": remote_path},
-                )
-                headers["X-Start-Byte"] = str(int(headers["X-Start-Byte"]) + chunk_size)
 
 
 async def download_file(remote_path: str) -> AsyncIterator[bytes]:
