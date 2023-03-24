@@ -239,6 +239,27 @@ async def part_upload_files(request: Request, remote_path: str):
                 if len(_chunk) < _size:
                     break
     return dict(code="success")
+async def upload_file(url: str, local_path: str, remote_path: str):
+    file_size = os.path.getsize(local_path)
+    chunk_size = 4 * 1024 * 1024
+    headers = {
+        "Content-Length": str(chunk_size),
+        "X-File-Size": str(file_size),
+        "X-Start-Byte": "0",
+    }
+    async with httpx.AsyncClient() as client:
+        with open(local_path, "rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    data=chunk,
+                    params={"remote_path": remote_path},
+                )
+                headers["X-Start-Byte"] = str(int(headers["X-Start-Byte"]) + chunk_size)
 
 
 async def download_file(remote_path: str) -> AsyncIterator[bytes]:
