@@ -201,7 +201,7 @@ async def create_file(request: Request, remote_path: str):
     return dict(code="success")
 
 
-@app.post("/test_files/")
+@app.post("/raw_files/")
 async def test_files(request: Request):
     with open("./test.dat", "w+b") as f:
         async for each in request.stream():
