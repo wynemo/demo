@@ -55,8 +55,9 @@ def replace_img(markdown_path):
 if __name__ == '__main__':
     # use argparse to add an argument to accept a markdown file as input
     parser = argparse.ArgumentParser()
-    parser.add_argument('--markdown_file', '-f', help='path to the markdown file')
+    parser.add_argument('--markdown_file', '-f', nargs="+", help='path to the markdown files')
     args = parser.parse_args()
 
     # replace all image urls in the markdown file with the path to the downloaded image
-    replace_img(args.markdown_file)
+    for each in args.markdown_file:
+        replace_img(each)
