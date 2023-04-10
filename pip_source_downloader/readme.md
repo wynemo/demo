@@ -10,8 +10,8 @@ The user is trying to download the source code for the pandas package without it
 
 ## solution
 
-This amazing script facilitates the download of specified packages along with their dependencies. In case a pure python wheel package is not available, it would also download the source package.
-这个惊人的脚本有助于下载指定的包及其依赖项。 如果没有纯 python wheel 包，它也会下载源码包。
+This amazing script facilitates the download of specified python packages along with their dependencies. In case a pure python wheel package is not available, it would also download the source package.
+这个惊人的脚本有助于下载指定的 Python 包及其依赖项。 如果没有纯 python wheel 包，它也会下载源码包。
 
 install unearth
 
