@@ -7,12 +7,6 @@ import requests
 
 import unearth
 
-# 安装 unearth
-# subprocess.run(['python3', '-m', 'pip', 'install', 'unearth'])
-
-# 创建虚拟环境
-# subprocess.run(['python3', '-m', 'venv', 'venv'])
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--requirements', '-r', help='requirements file')
 parser.add_argument('--pip', default='pip', help='pip path')
