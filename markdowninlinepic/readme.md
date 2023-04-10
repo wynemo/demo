@@ -1,4 +1,4 @@
-# 图片下载器
+# markdown 图片下载器
 
 这是一个python工程，可以将markdown文件中的所有图片网址替换为已下载图片的路径。
 
@@ -9,13 +9,13 @@
 要使用这个脚本，你需要在你的系统上安装Python 3。你还需要使用pip安装requests库：
 
 ```bash
-pip install requests
+pip install requests pillow
 ```
 
 然后，你可以在命令行中运行脚本，传递markdown文件的路径作为参数：
 
 ```bash
-python image_downloader.py -f example.md
+python main.py -f example.md
 ```
 
 脚本会在markdown文件所在的目录下创建一个名为`images`的文件夹，并把所有下载的图片保存在那里。它还会创建一个新的markdown文件，名为`example_new.md`，其中包含了更新后的图片路径。
