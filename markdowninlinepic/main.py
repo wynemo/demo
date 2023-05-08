@@ -69,8 +69,17 @@ if __name__ == '__main__':
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--markdown_file', '-f', nargs="+", help='path to the markdown files')
+    parser.add_argument('--markdown_folder', '-d', nargs="+", help='folder to the markdown files')
+    file_list = []
     args = parser.parse_args()
-
+    for file in args.markdown_file:
+        file_list.append(file)
+    for folder in args.markdown_folder:
+        for root, dirs, files in os.walk(folder):
+            for f in files:
+                if f.endswith('.md'):
+                    mdfile_path = os.path.join(root, f)
+                    file_list.append(mdfile_path)
     # Replace image URLs in each markdown file
-    for each in args.markdown_file:
+    for each in file_list:
         replace_img(each)
