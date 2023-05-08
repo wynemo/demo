@@ -2,7 +2,7 @@ import argparse
 import io
 import os
 import re
-import uuid
+import hashlib
 
 import requests
 from PIL import Image
@@ -16,7 +16,9 @@ def download_img(url):
     response = requests.get(url)
     # Print the response status code for debugging purposes
     print(response)
-
+    # Claculate the MD5 hash of the image file
+    md5_hash = hashlib.md5(response.content)
+    md5_digest = md5_hash.hexdigest()
     # Determine the file extension of the image from the URL
     file_ext = os.path.splitext(url)[-1]
 
@@ -26,7 +28,7 @@ def download_img(url):
         file_ext = '.' + img.format.lower()
 
     # Generate a unique name for the image file using UUID
-    img_name = str(uuid.uuid4()) + file_ext
+    img_name = md5_digest + file_ext
 
     # Create a directory to store the images if it doesn't exist
     img_dir = 'images'
