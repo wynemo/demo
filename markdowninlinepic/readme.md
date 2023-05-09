@@ -17,7 +17,9 @@ pip install requests pillow
 ```bash
 python main.py -f example.md
 ```
-
+传递markdown文件夹作为参数：
+```bash
+python main.py -d examplefolder
 脚本会在markdown文件所在的目录下创建一个名为`images`的文件夹，并把所有下载的图片保存在那里。它还会创建一个新的markdown文件，名为`example_new.md`，其中包含了更新后的图片路径。
 
 ## 示例
