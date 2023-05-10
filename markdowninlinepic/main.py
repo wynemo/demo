@@ -11,7 +11,7 @@ from PIL import Image
 # This function downloads an image from a given URL and saves it to a local directory
 # It takes a URL as input
 # It returns the path to the downloaded image file
-def download_img(url, direct = None):
+def download_img(url, directory = None):
     # Send a GET request to the URL and store the response
     response = requests.get(url)
     # Print the response status code for debugging purposes
@@ -31,8 +31,8 @@ def download_img(url, direct = None):
     img_name = md5_digest + file_ext
 
     # Create a directory to store the images if it doesn't exist
-    if direct:
-        img_dir = os.path.join(direct,'images')
+    if directory:
+        img_dir = os.path.join(directory,'images')
     else:
         img_dir = 'images'
     os.makedirs(img_dir, exist_ok=True)
@@ -60,7 +60,7 @@ def replace_img(markdown_path):
     for url in re.findall(pattern, content):
         # download the image if it's from a url and replace the url with the path to the downloaded image
         if url.startswith('http'):
-            img_path = download_img(url, direct = directory)
+            img_path = download_img(url, directory = directory)
             content = content.replace(url, img_path)
 
     # write the modified content back to the markdown file
