@@ -21,7 +21,7 @@ python main.py -f example.md
 ```bash
 python main.py -d examplefolder
 ```
-指定host下载(图片url含有localhost，127.0.0.1时):
+指定host下载:
 ```bash
 python main.py --host example.com
 ```
