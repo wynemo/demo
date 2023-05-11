@@ -3,7 +3,7 @@ import io
 import os
 import re
 import hashlib
-
+from urllib.parse import urlparse
 import requests
 from PIL import Image
 
@@ -14,9 +14,7 @@ from PIL import Image
 def download_img(url, directory = None, host = None):
     # Edit the URL
     if host:
-        pattern = r"(localhost|127\.0\.0\.1)(?::[0-9]+)?"
-        if re.search(pattern,url):
-            url = re.sub(pattern, host, url)
+        url = url.replace(urlparse(url).netloc, host)
     # Send a GET request to the URL and store the response
     response = requests.get(url)
     # Print the response status code for debugging purposes
