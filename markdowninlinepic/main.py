@@ -3,7 +3,7 @@ import io
 import os
 import re
 import hashlib
-
+from urllib.parse import urlparse
 import requests
 from PIL import Image
 
@@ -11,7 +11,10 @@ from PIL import Image
 # This function downloads an image from a given URL and saves it to a local directory
 # It takes a URL as input
 # It returns the path to the downloaded image file
-def download_img(url, directory = None):
+def download_img(url, directory = None, host = None):
+    # Edit the URL
+    if host:
+        url = url.replace(urlparse(url).netloc, host)
     # Send a GET request to the URL and store the response
     response = requests.get(url)
     # Print the response status code for debugging purposes
@@ -50,7 +53,7 @@ def download_img(url, directory = None):
 
 # This function replaces image URLs in a markdown file with the path to the downloaded image
 # It takes a markdown file path as input
-def replace_img(markdown_path):
+def replace_img(markdown_path, host=None):
     # read the content of the markdown file
     with open(markdown_path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -60,7 +63,7 @@ def replace_img(markdown_path):
     for url in re.findall(pattern, content):
         # download the image if it's from a url and replace the url with the path to the downloaded image
         if url.startswith('http'):
-            img_path = download_img(url, directory = directory)
+            img_path = download_img(url, directory = directory, host = host)
             content = content.replace(url, img_path)
 
     # write the modified content back to the markdown file
@@ -73,8 +76,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--markdown_file', '-f', nargs="+", help='path to the markdown files')
     parser.add_argument('--markdown_folder', '-d', nargs="+", help='folder to the markdown files')
+    parser.add_argument('--host', help = 'specify the host')
     file_list = []
     args = parser.parse_args()
+    host = args.host
     for file in args.markdown_file:
         file_list.append(file)
     for folder in args.markdown_folder:
@@ -85,4 +90,4 @@ if __name__ == '__main__':
                     file_list.append(mdfile_path)
     # Replace image URLs in each markdown file
     for each in file_list:
-        replace_img(each)
+        replace_img(each, host=host)
