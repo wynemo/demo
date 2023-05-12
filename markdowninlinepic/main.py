@@ -80,6 +80,8 @@ if __name__ == '__main__':
     file_list = []
     args = parser.parse_args()
     host = args.host
+    args.markdown_file = args.markdown_file or []
+    args.markdown_folder = args.markdown_folder or []
     for file in args.markdown_file:
         file_list.append(file)
     for folder in args.markdown_folder:
